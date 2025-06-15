@@ -398,24 +398,38 @@ def get_telemetry_history_ui(limit=50):
 
 def query_race_brain_ai(user_query: str):
     try:
-        response = requests.post(
-            f"{AI_API_BASE_URL}/query_race_brain_ai",
-            json={"user_input": user_query},
-            timeout=60
+        import openai  # Ensure openai is in requirements.txt
+        import streamlit as st
+
+        openai.api_key = st.secrets["GROQ_API_KEY"]
+        openai.base_url = "https://api.groq.com/openai/v1"
+
+        response = openai.ChatCompletion.create(
+            model="llama3-8b-8192",
+            messages=[
+                {"role": "system", "content": "You are a strategic motorsports AI assistant."},
+                {"role": "user", "content": user_query}
+            ]
         )
-        response.raise_for_status()
-        ai_response = response.json()
-        ai_response['timestamp'] = datetime.now().isoformat()
-        return ai_response 
-    except requests.exceptions.RequestException as e:
-        st.error(f"Failed to query RaceBrain AI: {e}")
+
         return {
-            "strategy_recommendation": f"Error: AI service unavailable: {e}", 
-            "confidence_score": 0.0, 
-            "priority_actions": [], 
+            "strategy_recommendation": response.choices[0].message.content,
+            "confidence_score": 0.9,  # Optional mock confidence
+            "priority_actions": [],
             "anomaly_report": {},
             "timestamp": datetime.now().isoformat()
         }
+
+    except Exception as e:
+        st.error(f"AI Query failed: {e}")
+        return {
+            "strategy_recommendation": f"Error: {e}",
+            "confidence_score": 0.0,
+            "priority_actions": [],
+            "anomaly_report": {},
+            "timestamp": datetime.now().isoformat()
+        }
+
 
 # --- Helper Functions ---
 def get_tire_status(temp, wear):
